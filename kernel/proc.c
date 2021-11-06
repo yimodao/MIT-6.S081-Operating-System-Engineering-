@@ -277,6 +277,7 @@ fork(void)
 
   np->parent = p;
 
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -290,6 +291,7 @@ fork(void)
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
+  safestrcpy(np->mask,p->mask,sizeof(p->mask));
 
   pid = np->pid;
 
@@ -692,4 +694,19 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// Number of non_UNUSED process.
+int aproc_number(void)
+{
+struct proc* p;
+int number=0;
+for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state!=UNUSED) {
+        number++;
+    }
+    release(&p->lock);
+  }
+return number;
 }
