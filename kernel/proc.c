@@ -30,7 +30,6 @@ procinit(void)
   initlock(&pid_lock, "nextpid");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
-
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
@@ -120,6 +119,8 @@ found:
     release(&p->lock);
     return 0;
   }
+  // An kernel page table for process;
+  p->kernel_pagetable = kvmcreate();
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -141,6 +142,8 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kernel_pagetable)
+    kvmfree(p->kernel_pagetable,0);
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -229,6 +232,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  kvmmapuser(p->pid,p->pagetable,p->kernel_pagetable,p->sz,0);
 
   release(&p->lock);
 }
@@ -273,6 +277,7 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+  
   np->sz = p->sz;
 
   np->parent = p;
@@ -294,6 +299,7 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
+  kvmmapuser(np->pid,np->pagetable,np->kernel_pagetable,np->sz,0);
 
   release(&np->lock);
 
@@ -473,12 +479,13 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        userkvminithart(p->kernel_pagetable);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
-
+        kvminithart();
         found = 1;
       }
       release(&p->lock);
@@ -662,7 +669,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
   if(user_src){
-    return copyin(p->pagetable, dst, src, len);
+    return copyin(p->pagetable, dst, src, len); 
   } else {
     memmove(dst, (char*)src, len);
     return 0;

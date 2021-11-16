@@ -167,6 +167,13 @@ pagetable_t     uvmcreate(void);
 void            uvminit(pagetable_t, uchar *, uint);
 uint64          uvmalloc(pagetable_t, uint64, uint64);
 uint64          uvmdealloc(pagetable_t, uint64, uint64);
+void            vmprint(pagetable_t);
+void            uvmfree(pagetable_t pagetable, uint64 sz);
+void            userkvminithart(pagetable_t pagetable);
+pagetable_t     kvmcreate(void);
+void            kvmfree(pagetable_t pagetable,uint64 sz);
+void kvmmapuser(int pid,pagetable_t user_p,pagetable_t kernel_p,uint64 newsize,uint64 oldsize);
+
 #ifdef SOL_COW
 #else
 int             uvmcopy(pagetable_t, pagetable_t, uint64);
@@ -198,6 +205,12 @@ void            virtio_disk_intr(void);
 // stats.c
 void            statsinit(void);
 void            statsinc(void);
+
+//vmcopyin.c
+int
+copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
+int
+copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
 
 // sprintf.c
 int             snprintf(char*, int, char*, ...);
