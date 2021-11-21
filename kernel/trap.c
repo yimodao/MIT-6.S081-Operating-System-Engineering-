@@ -29,6 +29,44 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+void switchTrapframe(struct trapframe*trapframe,struct trapframe*trapframesave)
+{trapframe->kernel_satp=trapframesave->kernel_satp;
+trapframe->kernel_sp=trapframesave->kernel_sp;
+trapframe->kernel_trap=trapframesave->kernel_trap;
+trapframe->epc=trapframesave->epc;
+trapframe->kernel_hartid =trapframesave->kernel_hartid;
+trapframe->ra=trapframesave->ra;
+trapframe->sp=trapframesave->sp;
+trapframe->gp=trapframesave->gp;
+trapframe->tp=trapframesave->tp;
+trapframe->t0=trapframesave->t0;
+trapframe->t1=trapframesave->t1;
+trapframe->t2=trapframesave->t2;
+trapframe->s0=trapframesave->s0;
+trapframe->s1=trapframesave->s1;
+trapframe->a0=trapframesave->a0;
+trapframe->a1=trapframesave->a1;
+trapframe->a2=trapframesave->a2;
+trapframe->a3=trapframesave->a3;
+trapframe->a4=trapframesave->a4;
+trapframe->a5=trapframesave->a5;
+trapframe->a6=trapframesave->a6;
+trapframe->a7=trapframesave->a7;
+trapframe->s2=trapframesave->s2;
+trapframe->s3=trapframesave->s3;
+trapframe->s4=trapframesave->s4;
+trapframe->s5=trapframesave->s5;
+trapframe->s6=trapframesave->s6;
+trapframe->s7=trapframesave->s7;
+trapframe->s8=trapframesave->s8;
+trapframe->s9=trapframesave->s9;
+trapframe->s10=trapframesave->s10;
+trapframe->s11=trapframesave->s11;
+trapframe->t3=trapframesave->t3;
+trapframe->t4=trapframesave->t4;
+trapframe->t5=trapframesave->t5;
+trapframe->t6=trapframesave->t6;
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -66,8 +104,20 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
+    if(which_dev == 2&&p->waitReturn==0)
+      {if(p->alarm_interval!=0)
+        {p->pass_ticks++;
+        if(p->pass_ticks==p->alarm_interval)
+          {switchTrapframe(p->trapframesave,p->trapframe);
+          p->pass_ticks=0;
+          p->trapframe->epc=(uint64)p->handler;
+          p->waitReturn=1;
+          }
+        }
+      }
+    }
     // ok
-  } else {
+   else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -79,7 +129,6 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-
   usertrapret();
 }
 
