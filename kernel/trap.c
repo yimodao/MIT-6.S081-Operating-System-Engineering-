@@ -33,6 +33,26 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+int cowfault(pagetable_t pagetable,uint64 va)
+{pte_t* pte= walk(pagetable,va,0);
+if(va>MAXVA)
+  return -1;
+if(pte==0)
+  return -1;
+if((*pte&PTE_U)==0||(*pte&PTE_V)==0)
+  return -1;
+uint64 pa2 =(uint64)kalloc();
+if(pa2==0){
+  printf("cow kalloc failed\n");
+  return -1;
+}
+uint64 pa1 = PTE2PA(*pte);
+memmove((void*)pa2, (void*)pa1, PGSIZE);
+*pte=PA2PTE(pa2)|PTE_R|PTE_W|PTE_X|PTE_V|PTE_U;
+kfree((void*)pa1);
+return 0;
+}
+
 void
 usertrap(void)
 {
@@ -65,7 +85,11 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  }else if(r_scause() == 0xf) {
+  if(cowfault(p->pagetable,r_stval())<0)
+      p->killed=1;
+  }
+  else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
