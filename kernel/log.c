@@ -107,6 +107,7 @@ write_head(void)
   int i;
   hb->n = log.lh.n;
   for (i = 0; i < log.lh.n; i++) {
+    
     hb->block[i] = log.lh.block[i];
   }
   bwrite(buf);
