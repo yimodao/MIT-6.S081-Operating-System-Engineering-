@@ -45,29 +45,30 @@ void kvminit()
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 }
-void kvmfree(pagetable_t pagetable,uint64 sz)
-{
-pte_t pte=pagetable[0];
-pagetable_t level1=(pagetable_t)PTE2PA(pte);
-for(int i=0;i<512;i++)
-  {pte_t pte=level1[i];
-  if(pte&PTE_V)
-    {
-      uint64 level0=PTE2PA(pte);
-      kfree((void*)level0);
-      level1[i]=0;
-    }
-  }
-kfree((void*)level1);
-kfree((void*)pagetable);
+
+void kvmfree(pagetable_t pagetable)
+{pte_t* pte1=&pagetable[0];
+ pagetable_t level2=(pagetable_t)PTE2PA(*pte1);
+ for(int i=0;i<512;i++){
+   pte_t* pte2=&level2[i];
+   if(*pte2&PTE_V){
+     pagetable_t level3=(pagetable_t) PTE2PA(*pte2);
+     kfree((void*)level3);
+     level2[i]=0;
+   }
+ }
+ kfree((void*)level2);
+ kfree((void*)pagetable);
 }
+
 //create a kernel pagetable for every process
 pagetable_t kvmcreate()
 { 
 pagetable_t pagetable = (pagetable_t)kalloc();
 memset(pagetable, 0, PGSIZE);
-for(int i=1;i<512;i++)
+for(int i=1;i<512;i++){
   pagetable[i]=kernel_pagetable[i];
+}
 mappages(pagetable, CLINT, 0x10000, CLINT, PTE_R | PTE_W);
 mappages(pagetable, PLIC, 0x400000,PLIC,PTE_R | PTE_W);
 mappages(pagetable, UART0, PGSIZE, UART0, PTE_R | PTE_W);
@@ -170,6 +171,12 @@ for(va=oldsize;va<newsize;va+=PGSIZE)
     panic("kvmmapuser:no kpte");
   *kpte=*upte;
   *kpte&=~(PTE_U|PTE_W|PTE_X);
+  }
+  if(newsize<oldsize){
+    for(uint64 vb=oldsize;vb<newsize;vb+=PGSIZE){
+       kpte=walk(kernel_p,vb,0);
+       *kpte&=~PTE_V;
+    }
   }
 }
 

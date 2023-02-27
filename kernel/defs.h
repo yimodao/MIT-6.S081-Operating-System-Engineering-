@@ -171,7 +171,7 @@ void            vmprint(pagetable_t);
 void            uvmfree(pagetable_t pagetable, uint64 sz);
 void            userkvminithart(pagetable_t pagetable);
 pagetable_t     kvmcreate(void);
-void            kvmfree(pagetable_t pagetable,uint64 sz);
+void            kvmfree(pagetable_t pagetable);
 void kvmmapuser(int pid,pagetable_t user_p,pagetable_t kernel_p,uint64 newsize,uint64 oldsize);
 
 #ifdef SOL_COW
