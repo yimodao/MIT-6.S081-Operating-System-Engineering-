@@ -33,14 +33,8 @@ procinit(void)
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
   }
-  kvminithart();
+  //kvminithart();
 }
 
 // Must be called with interrupts disabled,
@@ -111,7 +105,6 @@ found:
     release(&p->lock);
     return 0;
   }
-
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -121,7 +114,13 @@ found:
   }
   // An kernel page table for process;
   p->kernel_pagetable = kvmcreate();
-
+  char *pa = kalloc();
+  if(pa == 0)
+    panic("kalloc");
+  uint64 va = KSTACK((int) (p - proc));
+  mappages(p->kernel_pagetable,va, PGSIZE,(uint64)pa, PTE_R | PTE_W);
+  printf("add a k_stack to kernel pagetable!\n");
+  p->kstack = va;
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -142,9 +141,13 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kstack){
+    uvmunmap(p->kernel_pagetable,p->kstack,1,1);
+  }
   if(p->kernel_pagetable){
     kvmfree(p->kernel_pagetable);
   }
+  p->kernel_pagetable=0;
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -216,8 +219,10 @@ void
 userinit(void)
 {
   struct proc *p;
+  printf("first process alloc will start!\n");
 
   p = allocproc();
+  printf("first process alloc!\n");
   initproc = p;
   
   // allocate one user page and copy init's instructions
@@ -483,11 +488,12 @@ scheduler(void)
         c->proc = p;
         userkvminithart(p->kernel_pagetable);
         swtch(&c->context, &p->context);
-        kvminithart();
+        
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        kvminithart();
         found = 1;
       }
       release(&p->lock);
