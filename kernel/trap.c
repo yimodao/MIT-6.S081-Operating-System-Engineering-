@@ -67,11 +67,12 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  }else if(r_scause() == 15||r_scause()==13) 
-  {uint64 stval=r_stval();
-  if(stval>=p->sz)
+  } else if(r_scause() == 15||r_scause()==13) {
+    uint64 stval=r_stval();
+    if(stval>=p->sz){
       p->killed=1;
-  else{
+    }
+    else{
       uint64 protectTop=PGROUNDDOWN(p->trapframe->sp);
       uint64 stvalTop=PGROUNDUP(stval);
       if(protectTop!=stvalTop){
@@ -89,7 +90,7 @@ usertrap(void)
       }
     else
       p->killed=1;
-  }
+    }
   }
   else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);

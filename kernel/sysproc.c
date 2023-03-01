@@ -52,15 +52,15 @@ sys_sbrk(void)
   newsz=addr+n;
   if(newsz>=MAXVA)
     return addr;
-  if(n<0)
-    {if(newsz>addr){
+  if(n<0){
+    if(newsz>addr){
       newsz=0;
       uvmunmap(p->pagetable, 0,PGROUNDUP(addr)/PGSIZE, 1);
     }
     else{
-        uvmunmap(p->pagetable,PGROUNDUP(newsz),(PGROUNDUP(addr)-PGROUNDUP(newsz))/PGSIZE, 1);
+      uvmunmap(p->pagetable,PGROUNDUP(newsz),(PGROUNDUP(addr)-PGROUNDUP(newsz))/PGSIZE, 1);
     }
-    }
+  }
   p->sz=newsz;
   return addr;
 }
