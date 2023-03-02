@@ -322,6 +322,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     //for cow lab
     
     *pte &=~PTE_W;
+    *pte |=PTE_RSW;
     flags = PTE_FLAGS(*pte);
     //if((mem = kalloc()) == 0)
      // goto err;
@@ -369,14 +370,18 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     if(pa0 == 0)
       return -1;
     mypte=walk(pagetable,va0,0);
-    if(((*mypte)&PTE_W)==0)
-      {
-        mem=kalloc();
-        memmove((void*)mem, (void*)pa0, PGSIZE);
-        kfree((void*)pa0);
-        *mypte=(PA2PTE(mem))|PTE_W|PTE_R|PTE_V|PTE_U|PTE_X;
-        pa0=(uint64)mem;
-      }
+    if(((*mypte)&PTE_W)==0){
+        if(((*mypte)&PTE_RSW)==0){
+          panic("write unwritable page error");
+        }
+        else{
+          mem=kalloc();
+          memmove((void*)mem, (void*)pa0, PGSIZE);
+          kfree((void*)pa0);
+          *mypte=(PA2PTE(mem))|PTE_W|PTE_R|PTE_V|PTE_U|PTE_X;
+          pa0=(uint64)mem;
+        }
+    }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
